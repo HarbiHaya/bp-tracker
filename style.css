@@ -186,6 +186,8 @@ h1 {
 .status-elevated { background: #fff8e1; color: #f57f17; }
 .status-high { background: #fff3e0; color: #e65100; }
 .status-danger { background: #ffebee; color: #c62828; }
+.status-crisis { background: #dc2626; color: white; }
+.status-crisis { background: #c62828; color: white; }
 
 .chart-container { height: 220px; }
 
@@ -276,6 +278,10 @@ td { color: #333; }
 
 .stat-card .value { font-size: 1.5rem; font-weight: 600; color: #111; }
 .stat-card .sub { font-size: 0.75rem; color: #aaa; margin-top: 2px; }
+.stat-card .trend { font-size: 0.75rem; margin-top: 6px; font-weight: 500; }
+.trend-good { color: #16a34a; }
+.trend-bad { color: #dc2626; }
+.trend-neutral { color: #888; }
 
 #fileInput { display: none; }
 

@@ -101,10 +101,12 @@ function setTime(time) {
 }
 
 function getBPStatus(sys, dia) {
+    if (sys >= 180 || dia >= 120) return { text: 'Crisis', class: 'status-crisis' };
+    if (sys >= 140 || dia >= 90) return { text: 'Stage 2', class: 'status-danger' };
+    if ((sys >= 130 && sys < 140) || (dia >= 80 && dia < 90)) return { text: 'Stage 1', class: 'status-high' };
+    if (sys >= 120 && sys < 130 && dia < 80) return { text: 'Elevated', class: 'status-elevated' };
     if (sys < 120 && dia < 80) return { text: 'Normal', class: 'status-normal' };
-    if (sys < 130 && dia < 80) return { text: 'Elevated', class: 'status-elevated' };
-    if (sys < 140 || dia < 90) return { text: 'High Stage 1', class: 'status-high' };
-    return { text: 'High Stage 2', class: 'status-danger' };
+    return { text: 'Normal', class: 'status-normal' };
 }
 
 function updateStatusDisplay() {
@@ -213,19 +215,35 @@ function handleFileImport(event) {
 function calculateStats() {
     if (data.length === 0) return null;
 
-    const last7Days = data.filter(r => {
-        const diff = (new Date() - new Date(r.date)) / (1000 * 60 * 60 * 24);
-        return diff <= 7;
-    });
-
     const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+    const getDaysAgo = (dateStr) => {
+        const diff = (new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24);
+        return Math.floor(diff);
+    };
+
+    const last7Days = data.filter(r => getDaysAgo(r.date) <= 7);
+    const prev7Days = data.filter(r => getDaysAgo(r.date) > 7 && getDaysAgo(r.date) <= 14);
+
+    const uniqueDays = [...new Set(data.map(r => r.date))].length;
+    const uniqueLast7 = [...new Set(last7Days.map(r => r.date))].length;
+
+    const last7Sys = avg(last7Days.map(r => r.systolic));
+    const prev7Sys = avg(prev7Days.map(r => r.systolic));
+    const trend = prev7Days.length > 0 ? last7Sys - prev7Sys : null;
 
     return {
         avgSys: avg(data.map(r => r.systolic)),
         avgDia: avg(data.map(r => r.diastolic)),
         avgHR: avg(data.filter(r => r.heartRate).map(r => r.heartRate)),
         totalReadings: data.length,
-        last7: last7Days.length
+        totalDays: uniqueDays,
+        last7Days: uniqueLast7,
+        last7Sys,
+        last7Dia: avg(last7Days.map(r => r.diastolic)),
+        trend,
+        highest: data.length ? Math.max(...data.map(r => r.systolic)) : 0,
+        lowest: data.length ? Math.min(...data.map(r => r.systolic)) : 0
     };
 }
 
@@ -238,22 +256,37 @@ function renderStats() {
     }
 
     const status = getBPStatus(stats.avgSys, stats.avgDia);
+    const weekStatus = getBPStatus(stats.last7Sys, stats.last7Dia);
+    
+    let trendText = '';
+    let trendClass = '';
+    if (stats.trend !== null) {
+        if (stats.trend < -5) { trendText = 'Improving'; trendClass = 'trend-good'; }
+        else if (stats.trend > 5) { trendText = 'Rising'; trendClass = 'trend-bad'; }
+        else { trendText = 'Stable'; trendClass = 'trend-neutral'; }
+    }
 
     $('statsRow').innerHTML = `
         <div class="stat-card">
-            <div class="label">Average BP</div>
+            <div class="label">This Week Avg</div>
+            <div class="value">${stats.last7Sys || '-'}/${stats.last7Dia || '-'}</div>
+            <span class="status-badge ${weekStatus.class}">${weekStatus.text}</span>
+            ${trendText ? `<div class="trend ${trendClass}">${trendText}</div>` : ''}
+        </div>
+        <div class="stat-card">
+            <div class="label">Overall Avg</div>
             <div class="value">${stats.avgSys}/${stats.avgDia}</div>
             <span class="status-badge ${status.class}">${status.text}</span>
         </div>
         <div class="stat-card">
-            <div class="label">Avg Heart Rate</div>
-            <div class="value">${stats.avgHR || '-'}</div>
-            <div class="sub">bpm</div>
+            <div class="label">Range</div>
+            <div class="value">${stats.lowest}-${stats.highest}</div>
+            <div class="sub">systolic</div>
         </div>
         <div class="stat-card">
-            <div class="label">Total Readings</div>
-            <div class="value">${stats.totalReadings}</div>
-            <div class="sub">${stats.last7} in last 7 days</div>
+            <div class="label">Tracked</div>
+            <div class="value">${stats.totalDays}</div>
+            <div class="sub">days (${stats.totalReadings} readings)</div>
         </div>
     `;
 }
@@ -317,10 +350,18 @@ function renderChart() {
                 legend: {
                     position: 'bottom',
                     labels: { font: { family: 'DM Sans', size: 12 }, usePointStyle: true, padding: 20 }
+                },
+                annotation: {
+                    annotations: {
+                        crisis: { type: 'line', yMin: 180, yMax: 180, borderColor: '#dc2626', borderWidth: 1, borderDash: [5, 5] },
+                        stage2: { type: 'line', yMin: 140, yMax: 140, borderColor: '#ea580c', borderWidth: 1, borderDash: [5, 5] },
+                        stage1: { type: 'line', yMin: 130, yMax: 130, borderColor: '#ca8a04', borderWidth: 1, borderDash: [5, 5] },
+                        normal: { type: 'line', yMin: 120, yMax: 120, borderColor: '#16a34a', borderWidth: 1, borderDash: [5, 5] }
+                    }
                 }
             },
             scales: {
-                y: { min: 50, max: 180, grid: { color: '#f5f5f5' } },
+                y: { min: 50, max: 220, grid: { color: '#f5f5f5' } },
                 x: { grid: { display: false } }
             }
         }

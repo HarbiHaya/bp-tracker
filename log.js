@@ -34,10 +34,11 @@ function saveData(data) {
 }
 
 function getBPStatus(sys, dia) {
-    if (sys < 120 && dia < 80) return 'Normal';
-    if (sys < 130 && dia < 80) return 'Elevated';
-    if (sys < 140 || dia < 90) return 'High-1';
-    return 'High-2';
+    if (sys >= 180 || dia >= 120) return 'CRISIS';
+    if (sys >= 140 || dia >= 90) return 'Stage 2';
+    if ((sys >= 130 && sys < 140) || (dia >= 80 && dia < 90)) return 'Stage 1';
+    if (sys >= 120 && sys < 130 && dia < 80) return 'Elevated';
+    return 'Normal';
 }
 
 function parseDate(dateArg) {
